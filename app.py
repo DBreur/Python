@@ -1,4 +1,5 @@
 import mysql.connector as mysql
+import pandas as pd
 
 date = input("Datum (YYYY-MM-DD): ")
 note = input("Notities: ")
