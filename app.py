@@ -1,6 +1,6 @@
 import mysql.connector as mysql
 
-date = input("Datum (01-01-2026): ")
+date = input("Datum (YYYY-MM-DD): ")
 note = input("Notities: ")
 
 connection = mysql.connect(

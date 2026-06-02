@@ -1,0 +1,6 @@
+{
+  "code-runner.executorMap": {
+    "python": ".\\.venv\\Scripts\\python.exe -u"
+  },
+  "code-runner.runInTerminal": true
+}
