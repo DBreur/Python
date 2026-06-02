@@ -1,19 +1,20 @@
-import requests
-import json
 import mysql.connector as mysql
+
+date = input("Datum (01-01-2026): ")
+note = input("Notities: ")
 
 connection = mysql.connect(
     host="localhost",
     username="root",
     password="",
-    databast="escaperoom"
+    database="sambo"
 )
 
 cursor = connection.cursor()
-cursor.execute("SELECT * FROM questions")
+cursor.execute("INSERT INTO log (datum, note) VALUES (%s, %s)", (date, note))
 
-data = cursor.fetchall()
+connection.commit()
 
 cursor.close()
 connection.close()
-print(data)
+print("log opgeslagen")
