@@ -17,62 +17,75 @@ st.title("Libre 3 Dashboard")
 data = client.graph(patient_identifier=patient)
 
 try:
-    # 2. Build initial dataframe
+    # 1. Bouw de dataframe
     df = pd.DataFrame(data)
 
-    # 3. IF PANDAS STUCK EVERYTHING IN COLUMN 0 (Fixing the core issue):
-    # This unpacks a list of dicts/tuples trapped inside a single column
-    if 0 in df.columns or "0" in df.columns:
+    # Unpacken als het in één kolom gepropt zit
+    if len(df.columns) == 1 and (0 in df.columns or "0" in df.columns):
         col_key = 0 if 0 in df.columns else "0"
-        # Extract the inner dictionaries safely
-        inner_data = df[col_key].tolist()
-        df = pd.DataFrame.from_records(inner_data)
+        df = pd.DataFrame(df[col_key].tolist())
 
-    # 4. Handle Case Sensitivity and Column Mapping
-    # Standardize names regardless of how the API returned them
-    df.columns = [str(c).lower() for c in df.columns]
+    # 2. SLIMME DETECTIE VAN KOLOMMEN (Op basis van inhoud)
+    timestamp_col = None
+    value_col = None
 
-    if "timestamp" in df.columns:
-        df = df.rename(columns={"timestamp": "Timestamp"})
-    if "value" in df.columns:
-        df = df.rename(columns={"value": "Value"})
+    for col in df.columns:
+        # Check of de kolom tekst/datums bevat (zoals '2026-06-04' of '+00:00')
+        sample_val = str(df[col].iloc[0]) if not df[col].empty else ""
 
-    # --- EMERGENCY FALLBACK ---
-    # If the API used completely different names, let's auto-map them by position
-    if "Timestamp" not in df.columns and df.shape[1] >= 2:
-        # Assuming typical setup: Col 0 is Time, Col 1 is Value
-        df.columns = ["Timestamp", "Value"] + list(df.columns[2:])
-    # ---------------------------
+        if "-" in sample_val and ":" in sample_val:
+            timestamp_col = col
+        # Als het puur een getal is (of makkelijk converteerbaar naar een getal)
+        elif pd.to_numeric(df[col], errors='coerce').notna().any():
+            value_col = col
 
-    # 5. Clean & Convert Timestamps safely
-    if "Timestamp" in df.columns:
-        df["Timestamp"] = pd.to_datetime(df["Timestamp"], errors="coerce")
+    # Fallback: als de automatische detectie niets vindt, pakken we de oude namen/posities
+    if timestamp_col is None or value_col is None:
+        st.warning(
+            "Automatische kolomdetectie mislukt, we proberen de standaardindeling...")
+        timestamp_col = df.columns[0]
+        value_col = df.columns[1] if len(df.columns) > 1 else df.columns[0]
 
-    # 6. Render the Plotly chart
-    if "Timestamp" in df.columns and "Value" in df.columns:
+    # Hernoem de kolommen naar wat we nodig hebben
+    df = df.rename(columns={timestamp_col: "Timestamp", value_col: "Value"})
+
+    # 3. VEILIGE DATA CONVERSIE
+    # Forceer Timestamp naar datetime en strip de tijdzone (+00:00) voor Plotly
+    df["Timestamp"] = pd.to_datetime(df["Timestamp"], errors="coerce")
+    if df["Timestamp"].dt.tz is not None:
+        df["Timestamp"] = df["Timestamp"].dt.tz_localize(None)
+
+    # Forceer Value naar een echt getal
+    df["Value"] = pd.to_numeric(df["Value"], errors="coerce")
+
+    # Verwijder regels die écht leeg zijn
+    df = df.dropna(subset=["Timestamp", "Value"])
+
+    # Sorteer chronologisch
+    df = df.sort_values("Timestamp")
+
+    # 4. De Grafiek Tekenen
+    if not df.empty:
         fig = px.line(
             df,
             x="Timestamp",
             y="Value",
-            title="Glucosewaarden"
+            title="Glucosewaarden over tijd",
+            labels={"Value": "Glucose (mg/dL)", "Timestamp": "Tijdstip"}
         )
+        fig.update_traces(mode='lines+markers')
         st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.warning(
-            f"Could not map columns. Available columns are: {df.columns.tolist()}")
 
-    # 7. Safe Display for the Dataframe (No raw object columns allowed!)
-    st.subheader("Glucose Data Summary")
-
-    df_display = df.copy()
-    if "Timestamp" in df_display.columns:
+        # 5. Tabel Weergave
+        st.subheader("Glucose Data Overzicht")
+        df_display = df.copy()
         df_display["Timestamp"] = df_display["Timestamp"].dt.strftime(
-            '%Y-%m-%d %H:%M:%S')
-
-    # Drop any remaining columns that are pure unparsed 'object' types to ensure Arrow stays happy
-    df_display = df_display.select_dtypes(exclude=['object'])
-
-    st.dataframe(df_display)
+            '%d-%m %H:%M')
+        st.dataframe(df_display)
+    else:
+        st.error(
+            "De dataset is nog steeds leeg. Dit is de ruwe structuur die we proberen te lezen:")
+        st.write(df.head())
 
 except Exception as e:
-    st.error(f"Error structuring dashboard layout: {e}")
+    st.error(f"Fout bij het verwerken van de data: {e}")
