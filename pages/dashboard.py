@@ -71,8 +71,3 @@ fig = px.line(
 )
 fig.update_traces(mode="lines+markers")
 st.plotly_chart(fig, use_container_width=True)
-
-# st.subheader("Glucose Data Overzicht")
-# df_display = df.copy()
-# df_display["Tijdstip"] = df_display["Tijdstip"].dt.strftime("%d-%m %H:%M")
-# st.dataframe(df_display, use_container_width=True)
