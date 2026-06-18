@@ -1,5 +1,2 @@
 .env
-.streamlit/
-
-# supabas token
-# sbp_bc3b8955eb4352a4e73d6af32813b01426d5f39e
+.streamlit/secrets.toml
