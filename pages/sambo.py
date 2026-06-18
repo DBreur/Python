@@ -1,65 +1,57 @@
-import os
 import streamlit as st
-from datetime import datetime  # datetime toegevoegd voor de tijd
-import pandas as pd
-from sqlalchemy import create_engine, text
-from dotenv import load_dotenv
+from datetime import datetime
+import functions
 
-# Database configuratie ophalen
-load_dotenv()
+# Data opbalen uit de database
+df = functions.get_data(table="training")
 
-# Database gegevens
-USER = os.getenv("DB_USER")
-PASSWORD = os.getenv("DB_PASSWORD")
-HOST = os.getenv("DB_HOST")
-PORT = os.getenv("DB_PORT")
-DATABASE = os.getenv("DB_NAME")
+#! ----------------------------------------------------------
+#! Alle functies die niet in het functie bestand gaan
+#! ----------------------------------------------------------
 
-# SQL connectie
-conn_string = f"mysql+pymysql://{USER}:{PASSWORD}@{HOST}:{PORT}/{DATABASE}"
-engine = create_engine(conn_string)
-
-# Data ophalen uit de database
-query = "SELECT * FROM training"
-df = pd.read_sql(query, con=engine)
+# Functie voor het tonen van een dialog
 
 
 @st.dialog("Nieuwe training")
 def add_training_dialog():
     with st.form("training_form"):
-        # We gebruiken nu datetime.now() om automatisch de huidige datum EN tijd te pakken
         huidige_tijd = datetime.now()
 
         st.write(
             f"📅 **Tijdstip log:** {huidige_tijd.strftime('%d-%m-%Y %H:%M')}")
 
         categorie = st.radio("Training", ["🏋️", "🥋"])
-
-        # NIEUW: Bloedsuiker input (bijv. tussen 0.0 en 30.0 mmol/L)
         blood_sugar = st.number_input(
             "Bloedsuiker (mmol/L)", min_value=0.0, max_value=30.0, value=5.5, step=0.1)
-
         notitie = st.text_area("Notitie")
 
         submitted = st.form_submit_button("Opslaan")
 
         if submitted:
-            # 1. De database-push (Inclusief blood_sugar!)
-            insert_query = text("""
-                INSERT INTO training (date, categorie, note, blood_sugar) 
-                VALUES (:date, :categorie, :note, :blood_sugar)
-            """)
-
-            with engine.begin() as conn:
-                conn.execute(insert_query, {
-                    "date": huidige_tijd,  # Dit stuurt nu datum + tijd naar de DATETIME kolom
-                    "categorie": categorie,
-                    "note": notitie,
-                    "blood_sugar": blood_sugar  # Push naar de nieuwe kolom
-                })
-
-            # 2. De app herstarten
+            functions.insert_training(
+                huidige_tijd, categorie, notitie, blood_sugar)
             st.rerun()
+
+
+# Functie voor het tonen van een delete dialog
+@st.dialog("Delete training")
+def delete_training_dialog(training_id):
+    st.write("## Weet je zeker dat je deze training wilt verwijderen?")
+
+    col_cancel, col_delete = st.columns([1, 1])
+
+    with col_cancel:
+        canceled = st.button("Cancel", use_container_width=True)
+
+    with col_delete:
+        deleted = st.button("Delete", type="primary", use_container_width=True)
+
+    if canceled:
+        st.rerun()
+
+    if deleted:
+        functions.delete_training(training_id)
+        st.rerun()
 
 
 # Nieuwe training knop
@@ -70,12 +62,6 @@ if st.button("➕ Add new training"):
 st.title("📅 Trainingslogboek")
 
 if not df.empty:
-
-    # Zorg dat Pandas de DATETIME kolom goed begrijpt
-    df['date'] = pd.to_datetime(df['date'])
-
-    # Voor het filter-menu (selectbox) willen we nog wel filteren op DATUM (zonder tijd)
-    df['just_date'] = df['date'].dt.date
     beschikbare_datums = sorted(df['just_date'].unique(), reverse=True)
 
     geselecteerde_datum = st.selectbox(
@@ -107,14 +93,15 @@ if not df.empty:
                 st.markdown(
                     f"### {row['categorie']}"
                 )
-                # Toon de bloedsuikerwaarde bij de training
                 st.markdown(f"🩸 **Bloedsuiker:** {row['blood_sugar']} mmol/L")
 
             with col2:
-                # Hier tonen we nu de exacte TIJD (%H:%M) in plaats van alleen de datum
                 st.caption(
                     f"🕒 {row['date'].strftime('%H:%M')}"
                 )
+
+                if st.button("🗑️ Delete", key=f"delete_{row['id']}"):
+                    delete_training_dialog(row["id"])
 
             st.write(row['note'])
 
