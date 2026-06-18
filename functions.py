@@ -1,19 +1,15 @@
-import os
+import streamlit as st
 from sqlalchemy import create_engine, text
-from dotenv import load_dotenv
 import pandas as pd
 
-# Configuratie ophalen
-load_dotenv()
-
 # Connectie-engine
-USER = os.getenv("DB_USER")
-PASSWORD = os.getenv("DB_PASSWORD")
-HOST = os.getenv("DB_HOST")
-PORT = os.getenv("DB_PORT")
-DATABASE = os.getenv("DB_NAME")
+db_user = st.secrets["mysql"]["username"]
+db_password = st.secrets["mysql"]["password"]
+db_host = st.secrets["mysql"]["host"]
+db_port = st.secrets["mysql"]["port"]
+db_name = st.secrets["mysql"]["database"]
 
-conn_string = f"mysql+pymysql://{USER}:{PASSWORD}@{HOST}:{PORT}/{DATABASE}"
+conn_string = f"mysql+pymysql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
 engine = create_engine(conn_string)
 
 
