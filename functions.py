@@ -3,14 +3,17 @@ from sqlalchemy import create_engine, text
 import pandas as pd
 
 # Connectie-engine
-db_user = st.secrets["mysql"]["username"]
-db_password = st.secrets["mysql"]["password"]
-db_host = st.secrets["mysql"]["host"]
-db_port = st.secrets["mysql"]["port"]
-db_name = st.secrets["mysql"]["database"]
+db_user = st.secrets["postgres"]["username"]
+db_password = st.secrets["postgres"]["password"]
+db_host = st.secrets["postgres"]["host"]
+db_port = st.secrets["postgres"]["port"]
+db_name = st.secrets["postgres"]["database"]
 
-conn_string = f"mysql+pymysql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
-engine = create_engine(conn_string)
+# LET OP: We gebruiken nu postgresql+psycopg2 in plaats van mysql+pymysql
+DATABASE_URL = f"postgresql+psycopg2://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+
+# Maak de engine aan
+engine = create_engine(DATABASE_URL)
 
 
 # Data ophalen uit de database
