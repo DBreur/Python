@@ -1,16 +1,21 @@
+import os
 import streamlit as st
 from sqlalchemy import create_engine, text
 import pandas as pd
+import psycopg2
+from dotenv import load_dotenv
 
 # Connectie-engine
-db_user = st.secrets["postgres"]["username"]
-db_password = st.secrets["postgres"]["password"]
-db_host = st.secrets["postgres"]["host"]
-db_port = st.secrets["postgres"]["port"]
-db_name = st.secrets["postgres"]["database"]
+load_dotenv()
+
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("DB_PORT")
+DB_NAME = os.getenv("DB_NAME")
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
 
 # LET OP: We gebruiken nu postgresql+psycopg2 in plaats van mysql+pymysql
-DATABASE_URL = f"postgresql+psycopg2://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?sslmode=require"
+DATABASE_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 # Maak de engine aan
 engine = create_engine(DATABASE_URL)
